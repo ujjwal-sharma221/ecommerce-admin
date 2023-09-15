@@ -1,0 +1,40 @@
+import prismaDb from "@/lib/prismadb";
+import { format } from "date-fns";
+
+import { OrderClient } from "./components/client";
+import { OrderColumn } from "./components/columns";
+import { formatter } from "@/lib/utils";
+
+const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
+  const orders = await prismaDb.order.findMany({
+    where: { storeId: params.storeId },
+    include: { OrderItem: { include: { product: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const formattedOrders: OrderColumn[] = orders.map((item) => ({
+    id: item.id,
+    phone: item.phone,
+    address: item.address,
+    products: item.OrderItem.map((orderItem) => orderItem.product.name).join(
+      ", "
+    ),
+    totalPrice: formatter.format(
+      item.OrderItem.reduce((total, item) => {
+        return total + Number(item.product.price);
+      }, 0)
+    ),
+    isPaid: item.isPaid,
+    createdAt: format(item.createdAt, "MMMM do,yyyy"),
+  }));
+
+  return (
+    <div className="flex-col">
+      <div className="flex-1 p-8 pt-6 space-y-4">
+        <OrderClient data={formattedOrders}></OrderClient>
+      </div>
+    </div>
+  );
+};
+
+export default OrdersPage;
